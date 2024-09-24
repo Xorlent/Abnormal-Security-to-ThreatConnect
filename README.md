@@ -13,8 +13,24 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
 - Other
 
 ## Requirements
-Documentation in progress...  
+- A Windows host with PowerShell
+- An Abnormal Security API key (Settings->Abnormal REST API)
+- ThreatConnect API credentials (Access ID and secret key)
+
 ## Usage
-Documentation in progress...  
+1. In a PowerShell window, run Get-AbnormaltoTC.ps1
+2. If no configuration file is present, the tool will prompt for necessary information:
+   - ThreatConnect API Endpoint URL
+   - Abnormal Security API key
+   - ThreatConnect access ID
+   - ThreatConnect secret key
+   - Organization nickname or common abbreviation
+   - Organization full name
+   - Organization email domain name
+   - Owner name for ThreatConnect intel records
+   - Organization city, state
+3. Each Abnormal threat result will return a prompt asking the analyst whether or not to send the item to ThreatConnect
+   - This tool has basic redaction capabilities to help ensure no data leakage occurs
+
 ## Notes
 Documentation in progress...  
