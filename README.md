@@ -29,7 +29,8 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
    - Organization email domain name
    - Owner name for ThreatConnect intel records
    - Organization city, state
-3. Each Abnormal threat result will return a prompt asking the analyst whether or not to send the item to ThreatConnect
+3. The tool then prompts for the number of days of data to retrieve
+4. Each Abnormal threat result will return a prompt asking the analyst whether or not to send the item to ThreatConnect
    - This tool has basic redaction capabilities to help ensure no data leakage occurs
 
 ## Notes, Limitations
