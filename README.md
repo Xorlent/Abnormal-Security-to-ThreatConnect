@@ -32,6 +32,7 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
 3. The tool then prompts for the number of days of data to retrieve
 4. Each Abnormal threat result will return a prompt asking the analyst whether or not to send the item to ThreatConnect
    - This tool has basic redaction capabilities to help ensure no data leakage occurs
+   - If you followed Abnormal's recommendation to prepend [SUSPICIOUS] to items identified as bulk mail, these will be skipped automatically
 
 ## Notes, Limitations
 - This tool is considered beta until I am comfortable that we've processed enough data with it that we have dealt with most edge cases.  I suspect the tool will receive more revisions and significant refactoring before it becomes version 1.0.
