@@ -32,5 +32,5 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
 3. Each Abnormal threat result will return a prompt asking the analyst whether or not to send the item to ThreatConnect
    - This tool has basic redaction capabilities to help ensure no data leakage occurs
 
-## Notes
-Documentation in progress...  
+## Notes, Limitations
+- Currently the Abnormal API email FromAddress field is limited to 256 characters which can lead to truncated values and therefore invalid addresses being returned.  In the event an email address is truncated, this tool skips reporting the emailAddress indicator object to ThreatConnect, but the IP Address indictor will be published.
