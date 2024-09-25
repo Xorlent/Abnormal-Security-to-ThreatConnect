@@ -447,8 +447,8 @@ ForEach($Attack in $InterestingAttackTypes)
                             # If we got a 403 error, the likely cause is a filtered/whitelisted email address.  Swap the email address with the reply-to address and re-submit the indicator.
                             if($err -like "*(403)*"){
                                 $bodyData.address = $ReplyTmp -iReplace $TargetOrg,'redacted'
-                                $response2 = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
-                                Write-Output $response2.data
+                                $response403 = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
+                                Write-Output $response403.data
                                 }
                             else{
                                 Write-Host "*************************** UNHANDLED EXCEPTION SENDING EMAILADDRESS INDICATOR TO THREATCONNECT.  DETAILS BELOW: ***************************" -ForegroundColor Red
