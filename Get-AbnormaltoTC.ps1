@@ -2,7 +2,7 @@
 .NAME
     Abnormal Security Email Threat Feed to ThreatConnect
 .VERSION
-    0.1.1
+    0.1.2
 .NOTES
     1.API connection ID and secrets are encrypted with the Windows Data Protection API.
         Encrypted config file fields within AbnormaltoTC-Config.xml are not portable between users/machines.
@@ -448,6 +448,7 @@ ForEach($Attack in $InterestingAttackTypes)
                             if($err -like "*(403)*"){
                                 $bodyData.address = $ReplyTmp -iReplace $TargetOrg,'redacted'
                                 $response2 = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
+                                Write-Output $response2.data
                                 }
                             else{
                                 Write-Host "*************************** UNHANDLED EXCEPTION SENDING EMAILADDRESS INDICATOR TO THREATCONNECT.  DETAILS BELOW: ***************************" -ForegroundColor Red
