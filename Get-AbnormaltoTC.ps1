@@ -2,7 +2,7 @@
 .NAME
     Abnormal Security Email Threat Feed to ThreatConnect
 .VERSION
-    0.1.2
+    0.1.3
 .NOTES
     1.API connection ID and secrets are encrypted with the Windows Data Protection API.
         Encrypted config file fields within AbnormaltoTC-Config.xml are not portable between users/machines.
@@ -26,6 +26,7 @@ $Logging = $false
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Set up runtime variables
+$FilterFile = "$PSScriptRoot\AbnormaltoTC-Filters.txt"
 $ConfigFile = "$PSScriptRoot\AbnormaltoTC-Config.xml"
 $DefaultAPIURL = 'https://app.threatconnect.com'
 $TargetOrg = ""
@@ -33,6 +34,9 @@ $TargetOrgFull = ""
 $TargetOrgDomain = ""
 $OwnerName = ""
 $CityState = ""
+
+# If the filter file does not exist, create it.
+if (-not(Test-Path -Path $FilterFile -PathType Leaf)){[void](New-Item -Path $FilterFile -ItemType File)}
 
 # If the config file does not exist, prompt for details and write the file.
 if (-not(Test-Path -Path $ConfigFile -PathType Leaf)){
@@ -188,188 +192,163 @@ ForEach($Attack in $InterestingAttackTypes)
         {
             if(!$Message.subject.Contains('[SUSPICIOUS]'))
             {
-                Write-Host '############################### ------------------------------------------------------------ ##############################' -ForegroundColor Cyan
-                Write-Host 'Subject: '-ForegroundColor Gray -NoNewline
-                $SanitizedSubject1 = $Message.subject -iReplace $TargetOrg,'-redacted-'
-                $SanitizedSubject = $SanitizedSubject1 -iReplace $TargetOrgFull,'-redacted-'
-                $SanitizedSubject
-                $SanitizedFrom1 = $Message.fromName -iReplace $TargetOrg,'-redacted-'
-                $SanitizedFrom = $SanitizedFrom1 -iReplace $TargetOrgFull,'-redacted-'
-
-                $AttributeArray = @(
-                    @{
-                    'type' = 'Description'
-                    'default' = 'true'
-                    'value' = 'FROM: ' + $SanitizedFrom + ' | IP: ' + $Message.senderIpAddress + ' | RETURN PATH: ' + $Message.returnPath.Replace($TargetOrg,'redacted') + ' | SUBJECT: ' + $SanitizedSubject + ' | ATTACK TYPE: ' + $Message.attackType + ' | STRATEGY: ' + $Message.attackStrategy + ' | VECTOR: ' + $Message.attackVector + ' | INSIGHTS: ' + $Message.summaryInsights
-                    }
-                )
-
-                Write-Host 'Message Received at: '-ForegroundColor Gray -NoNewline
-                Write-Host $Message.receivedTime
-
-                Write-Host 'Attack Type: '-ForegroundColor Gray -NoNewline
-                $Message.attackType
-
-                Write-Host 'Attack Strategy: '-ForegroundColor Gray -NoNewline
-                $Message.attackStrategy
-
-                Write-Host 'Attack Vector: '-ForegroundColor Gray -NoNewline
-                $Message.attackVector
-
-                Write-Host 'Sender IP: '-ForegroundColor Gray -NoNewline
-                $Message.senderIpAddress
-
-                Write-Host 'From: '-ForegroundColor Gray -NoNewline
-                $Message.fromAddress
-
-                Write-Host 'Return Path: '-ForegroundColor Gray -NoNewline
-                $Message.returnPath
-
-                if ($Message.replyToEmails.Count -gt 0)
+                $filterMatch = 0
+                ForEach($FilterAddress in Get-Content $FilterFile)
                 {
-                    Write-Host 'Reply-to Emails:'-ForegroundColor Gray
-                }
-                ForEach($Email in $Message.replyToEmails)
-                {
-                    $ReplyTmp = $Email.ToString()
-                    $ReplyTmp
-                    $AttributeArray += @{
-                        'type' = 'Reply-To Email Address'
-                        'value' = $ReplyTmp -iReplace $TargetOrg,'redacted'
-                        }
-                }
-
-                Write-Host 'Email Insights:'-ForegroundColor Gray
-                $Message.summaryInsights
-
-                if ($Message.attachmentCount -gt 0)
-                {
-                    Write-Host 'Attachments:'-ForegroundColor Gray
-                }
-
-                ForEach($Attachment in $Message.attachmentNames)
-                {
-                    $AttachmentTmp = $Attachment.ToString()
-                    $AttachmentTmp
-                    $AttributeArray += @{
-                        'type' = 'Attachment Name'
-                        'value' = $AttachmentTmp -iReplace $TargetOrg,'-redacted-'
-                        }
-                }
-
-                if ($Message.urlCount -gt 0)
-                {
-                    Write-Host 'URLs:'-ForegroundColor Gray
-                }
-
-                ForEach($URL in $Message.urls)
-                {
-                    $StringURL = $URL.ToString()
-                    if(-Not ($StringURL.Contains('https://aka.ms/LearnAboutSenderIdentification') -or $StringURL.Contains($TargetOrgDomain)))
+                    if($Message.fromAddress.Contains($FilterAddress))
                     {
-                        $ShortURL = $URL.Split("?")
-                        $ShortURL[0]
+                        $filterMatch = 1
+                        break
+                    }
+                }
+
+                if($filterMatch -eq 0)
+                {
+                    Write-Host '############################### ------------------------------------------------------------ ##############################' -ForegroundColor Cyan
+                    Write-Host 'Subject: '-ForegroundColor Gray -NoNewline
+                    $SanitizedSubject1 = $Message.subject -iReplace $TargetOrg,'-redacted-'
+                    $SanitizedSubject = $SanitizedSubject1 -iReplace $TargetOrgFull,'-redacted-'
+                    $SanitizedSubject
+                    $SanitizedFrom1 = $Message.fromName -iReplace $TargetOrg,'-redacted-'
+                    $SanitizedFrom = $SanitizedFrom1 -iReplace $TargetOrgFull,'-redacted-'
+
+                    $AttributeArray = @(
+                        @{
+                        'type' = 'Description'
+                        'default' = 'true'
+                        'value' = 'FROM: ' + $SanitizedFrom + ' | IP: ' + $Message.senderIpAddress + ' | RETURN PATH: ' + $Message.returnPath.Replace($TargetOrg,'redacted') + ' | SUBJECT: ' + $SanitizedSubject + ' | ATTACK TYPE: ' + $Message.attackType + ' | STRATEGY: ' + $Message.attackStrategy + ' | VECTOR: ' + $Message.attackVector + ' | INSIGHTS: ' + $Message.summaryInsights
+                        }
+                    )
+
+                    Write-Host 'Message Received at: '-ForegroundColor Gray -NoNewline
+                    Write-Host $Message.receivedTime
+
+                    Write-Host 'Attack Type: '-ForegroundColor Gray -NoNewline
+                    $Message.attackType
+
+                    Write-Host 'Attack Strategy: '-ForegroundColor Gray -NoNewline
+                    $Message.attackStrategy
+
+                    Write-Host 'Attack Vector: '-ForegroundColor Gray -NoNewline
+                    $Message.attackVector
+
+                    Write-Host 'Sender IP: '-ForegroundColor Gray -NoNewline
+                    $Message.senderIpAddress
+
+                    Write-Host 'From: '-ForegroundColor Gray -NoNewline
+                    $Message.fromAddress
+
+                    Write-Host 'Return Path: '-ForegroundColor Gray -NoNewline
+                    $Message.returnPath
+
+                    if ($Message.replyToEmails.Count -gt 0)
+                    {
+                        Write-Host 'Reply-to Emails:'-ForegroundColor Gray
+                    }
+                    ForEach($Email in $Message.replyToEmails)
+                    {
+                        $ReplyTmp = $Email.ToString()
+                        $ReplyTmp
                         $AttributeArray += @{
-                            'type' = 'Full URL if Truncated for Summary'
-                            'value' = $ShortURL[0]
+                            'type' = 'Reply-To Email Address'
+                            'value' = $ReplyTmp -iReplace $TargetOrg,'redacted'
                             }
                     }
-                }
 
-                Write-Host '############################### ------------------------------------------------------------ ##############################' -ForegroundColor Cyan
+                    Write-Host 'Email Insights:'-ForegroundColor Gray
+                    $Message.summaryInsights
 
-                # Prompt user to decide whether or not to submit the displayed result.
-                Write-Host '====> ' -ForegroundColor Green -NoNewline
-                $SendRecord = Read-Host -Prompt 'Send this email to ThreatConnect (Y)es, (N)o, or (I)nspect in browser?  Only submit confirmed attacks.  (Default = Y)'
-
-                # See if user wants to inspect the Abnormal threat entry in a browser for a more detailed look at the email
-                if($SendRecord -ieq 'I'){
-                    $InspectSwitch = '--new-window ' + $message.abxPortalUrl
-                    Start-Process msedge.exe $InspectSwitch
-                    Write-Host '===============================================> ' -ForegroundColor Green -NoNewline
-                    $SendRecord = Read-Host -Prompt 'Based on your inspection, send this email to ThreatConnect?  (Default = Y)'
-                }
-                
-                if ([string]::IsNullOrWhiteSpace($SendRecord)){$SendRecord = 'Y'}
-
-                # If 'Y/y' is selected, publish the record to ThreatConnect
-                if($SendRecord -eq 'Y')
+                    if ($Message.attachmentCount -gt 0)
                     {
-
-                    $DTS = (Get-Date).ToUniversalTime() | Get-Date -UFormat %s
-                    $timestamp = $DTS.Split(".")
-
-                    $EncPayload = $APIURL + ':' + $URLMethod + ':' + $timestamp[0]
-
-                    $APIURL2 = $APIBaseURL + $APIURL
-
-                    $hmacsha = New-Object System.Security.Cryptography.HMACSHA256
-                    $hmacsha.key = [Text.Encoding]::ASCII.GetBytes($secretKey)
-                    $signature = $hmacsha.ComputeHash([Text.Encoding]::ASCII.GetBytes($EncPayload))
-                    $signature = [Convert]::ToBase64String($signature)
-                    $authorization = 'TC ' + $accessID + ':' + $signature
-
-                    $headerData = @{
-                       'Timestamp' = $timestamp[0]
-                       'Authorization' = $authorization
-                       'Accept' = 'application/json'
-                       }
-                    $bodyData = @{
+                        Write-Host 'Attachments:'-ForegroundColor Gray
                     }
-                    $IPbodyData = @{
-                        'type' = 'Address'
-                        'ownerName' = $OwnerName
-                        'ip' = $Message.senderIpAddress
-                        'lastSeen' = $Message.receivedTime
-                        'attributes' = @{
-                            'data' = @(
-                                    @{
-                                    'type' = 'Description'
-                                    'default' = 'true'
-                                    'value' = 'EMAIL FROM: ' + $Message.fromAddress.Replace($TargetOrg,'redacted') + ' (' + $SanitizedFrom + ') | IP: ' + $Message.senderIpAddress + ' | RETURN PATH: ' + $Message.returnPath.Replace($TargetOrg,'redacted') + ' | SUBJECT: ' + $SanitizedSubject + ' | ATTACK TYPE: ' + $Message.attackType + ' | STRATEGY: ' + $Message.attackStrategy + ' | VECTOR: ' + $Message.attackVector + ' | INSIGHTS: ' + $Message.summaryInsights
-                                    }
-                                )
+
+                    ForEach($Attachment in $Message.attachmentNames)
+                    {
+                        $AttachmentTmp = $Attachment.ToString()
+                        $AttachmentTmp
+                        $AttributeArray += @{
+                            'type' = 'Attachment Name'
+                            'value' = $AttachmentTmp -iReplace $TargetOrg,'-redacted-'
                             }
-                        'active' = 'true'
-                        'tags' = @{
-                            'data' = @(
-                                    @{
-                                    'name' = $Message.attackType
-                                    },
-                                    @{
-                                    'name' = $TargetOrg.ToUpper()
-                                    },
-                                    @{
-                                    'name' = $CityState
-                                    }
-                                )
-                            }
-                        'securityLabels' = @{
-                            'data' = @(
-                                    @{
-                                    'name' = 'TLP:AMBER'
-                                    }
-                                )
-                            }
-                        'confidence' = $ThreatConfidence
-                        'rating' = $ThreatRating
                     }
-                    # Send the IP (Address) indicator first before we create the emailAddress indicator
-                    try{
-                        $responseIP = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($IPbodyData | ConvertTo-Json -Depth 4)
-                        # If the IP indicator API call was successful, add its ID to the associatedIndicators list for the emailAddress indicator API call
+
+                    if ($Message.urlCount -gt 0)
+                    {
+                        Write-Host 'URLs:'-ForegroundColor Gray
+                    }
+
+                    ForEach($URL in $Message.urls)
+                    {
+                        $StringURL = $URL.ToString()
+                        if(-Not ($StringURL.Contains('https://aka.ms/LearnAboutSenderIdentification') -or $StringURL.Contains($TargetOrgDomain)))
+                        {
+                            $ShortURL = $URL.Split("?")
+                            $ShortURL[0]
+                            $AttributeArray += @{
+                                'type' = 'Full URL if Truncated for Summary'
+                                'value' = $ShortURL[0]
+                                }
+                        }
+                    }
+
+                    Write-Host '############################### ------------------------------------------------------------ ##############################' -ForegroundColor Cyan
+
+                    # Prompt user to decide whether or not to submit the displayed result.
+                    Write-Host '====> ' -ForegroundColor Green -NoNewline
+                    $SendRecord = Read-Host -Prompt 'Send this email to ThreatConnect (Y)es, (N)o, (F)ilter this From Address, or (I)nspect in browser?  Only submit confirmed attacks.  (Default = Y)'
+
+                    # See if user wants to inspect the Abnormal threat entry in a browser for a more detailed look at the email
+                    if($SendRecord -ieq 'I'){
+                        $InspectSwitch = '--new-window ' + $message.abxPortalUrl
+                        Start-Process msedge.exe $InspectSwitch
+                        Write-Host '===============================================> ' -ForegroundColor Green -NoNewline
+                        $SendRecord = Read-Host -Prompt 'Based on your inspection, send this email to ThreatConnect?  (Default = Y)'
+                    }
+
+                    # Add the From Address to the filter configuration file
+                    if($SendRecord -ieq 'F'){
+                        Add-Content -Path $FilterFile -Value $Message.fromAddress
+                        Write-Host "<<<<<<<<<<<<<<<<<<<<<<<<<Email From Address added to filter list located at $FilterFile>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                        }
+                
+                    if ([string]::IsNullOrWhiteSpace($SendRecord)){$SendRecord = 'Y'}
+
+                    # If 'Y/y' is selected, publish the record to ThreatConnect
+                    if($SendRecord -eq 'Y')
+                        {
+
+                        $DTS = (Get-Date).ToUniversalTime() | Get-Date -UFormat %s
+                        $timestamp = $DTS.Split(".")
+
+                        $EncPayload = $APIURL + ':' + $URLMethod + ':' + $timestamp[0]
+
+                        $APIURL2 = $APIBaseURL + $APIURL
+
+                        $hmacsha = New-Object System.Security.Cryptography.HMACSHA256
+                        $hmacsha.key = [Text.Encoding]::ASCII.GetBytes($secretKey)
+                        $signature = $hmacsha.ComputeHash([Text.Encoding]::ASCII.GetBytes($EncPayload))
+                        $signature = [Convert]::ToBase64String($signature)
+                        $authorization = 'TC ' + $accessID + ':' + $signature
+
+                        $headerData = @{
+                           'Timestamp' = $timestamp[0]
+                           'Authorization' = $authorization
+                           'Accept' = 'application/json'
+                           }
                         $bodyData = @{
-                            'type' = 'EmailAddress'
+                        }
+                        $IPbodyData = @{
+                            'type' = 'Address'
                             'ownerName' = $OwnerName
-                            'address' = $Message.fromAddress -iReplace $TargetOrg,'redacted'
+                            'ip' = $Message.senderIpAddress
                             'lastSeen' = $Message.receivedTime
                             'attributes' = @{
-                                'data' = $AttributeArray
-                                }
-                            'associatedIndicators' = @{
                                 'data' = @(
                                         @{
-                                        'id' = $responseIP.data.id
+                                        'type' = 'Description'
+                                        'default' = 'true'
+                                        'value' = 'EMAIL FROM: ' + $Message.fromAddress.Replace($TargetOrg,'redacted') + ' (' + $SanitizedFrom + ') | IP: ' + $Message.senderIpAddress + ' | RETURN PATH: ' + $Message.returnPath.Replace($TargetOrg,'redacted') + ' | SUBJECT: ' + $SanitizedSubject + ' | ATTACK TYPE: ' + $Message.attackType + ' | STRATEGY: ' + $Message.attackStrategy + ' | VECTOR: ' + $Message.attackVector + ' | INSIGHTS: ' + $Message.summaryInsights
                                         }
                                     )
                                 }
@@ -396,85 +375,129 @@ ForEach($Attack in $InterestingAttackTypes)
                                 }
                             'confidence' = $ThreatConfidence
                             'rating' = $ThreatRating
-                            }
                         }
-                    catch{
-                        # If it did not accept our IP indicator, do not send the associatedIndicators list to the emailAddress indicator API call
-                        $bodyData = @{
-                            'type' = 'EmailAddress'
-                            'ownerName' = $OwnerName
-                            'address' = $Message.fromAddress -iReplace $TargetOrg,'redacted'
-                            'lastSeen' = $Message.receivedTime
-                            'attributes' = @{
-                                'data' = $AttributeArray
-                                }
-                            'active' = 'true'
-                            'tags' = @{
-                                'data' = @(
-                                        @{
-                                        'name' = $Message.attackType
-                                        },
-                                        @{
-                                        'name' = $TargetOrg.ToUpper()
-                                        },
-                                        @{
-                                        'name' = $CityState
-                                        }
-                                    )
-                                }
-                            'securityLabels' = @{
-                                'data' = @(
-                                        @{
-                                        'name' = 'TLP:AMBER'
-                                        }
-                                    )
-                                }
-                            'confidence' = $ThreatConfidence
-                            'rating' = $ThreatRating
-                            }
-                        }
-                    finally {
-                        # Now send the emailaddress indicator
+                        # Send the IP (Address) indicator first before we create the emailAddress indicator
                         try{
-                            # If Abnormal's API truncated the email address, we won't have a valid emailAddress indicator to submit, so skip it
-                            if($Message.fromAddress.Length -lt 255)
-                                {
-                                $response = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
+                            $responseIP = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($IPbodyData | ConvertTo-Json -Depth 4)
+                            # If the IP indicator API call was successful, add its ID to the associatedIndicators list for the emailAddress indicator API call
+                            $bodyData = @{
+                                'type' = 'EmailAddress'
+                                'ownerName' = $OwnerName
+                                'address' = $Message.fromAddress -iReplace $TargetOrg,'redacted'
+                                'lastSeen' = $Message.receivedTime
+                                'attributes' = @{
+                                    'data' = $AttributeArray
+                                    }
+                                'associatedIndicators' = @{
+                                    'data' = @(
+                                            @{
+                                            'id' = $responseIP.data.id
+                                            }
+                                        )
+                                    }
+                                'active' = 'true'
+                                'tags' = @{
+                                    'data' = @(
+                                            @{
+                                            'name' = $Message.attackType
+                                            },
+                                            @{
+                                            'name' = $TargetOrg.ToUpper()
+                                            },
+                                            @{
+                                            'name' = $CityState
+                                            }
+                                        )
+                                    }
+                                'securityLabels' = @{
+                                    'data' = @(
+                                            @{
+                                            'name' = 'TLP:AMBER'
+                                            }
+                                        )
+                                    }
+                                'confidence' = $ThreatConfidence
+                                'rating' = $ThreatRating
                                 }
                             }
                         catch{
-                            $err=$_.Exception
-                            # If we got a 403 error, the likely cause is a filtered/whitelisted email address.  Swap the email address with the reply-to address and re-submit the indicator.
-                            if($err -like "*(403)*"){
-                                $bodyData.address = $ReplyTmp -iReplace $TargetOrg,'redacted'
-                                $response403 = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
-                                Write-Output $response403.data
+                            # If it did not accept our IP indicator, do not send the associatedIndicators list to the emailAddress indicator API call
+                            $bodyData = @{
+                                'type' = 'EmailAddress'
+                                'ownerName' = $OwnerName
+                                'address' = $Message.fromAddress -iReplace $TargetOrg,'redacted'
+                                'lastSeen' = $Message.receivedTime
+                                'attributes' = @{
+                                    'data' = $AttributeArray
+                                    }
+                                'active' = 'true'
+                                'tags' = @{
+                                    'data' = @(
+                                            @{
+                                            'name' = $Message.attackType
+                                            },
+                                            @{
+                                            'name' = $TargetOrg.ToUpper()
+                                            },
+                                            @{
+                                            'name' = $CityState
+                                            }
+                                        )
+                                    }
+                                'securityLabels' = @{
+                                    'data' = @(
+                                            @{
+                                            'name' = 'TLP:AMBER'
+                                            }
+                                        )
+                                    }
+                                'confidence' = $ThreatConfidence
+                                'rating' = $ThreatRating
                                 }
-                            else{
-                                Write-Host "*************************** UNHANDLED EXCEPTION SENDING EMAILADDRESS INDICATOR TO THREATCONNECT.  DETAILS BELOW: ***************************" -ForegroundColor Red
-                                Write-Output $err
-                                $ExceptionAction = Read-Host "Hit ENTER to continue processing records or Q to quit"
-                                if ($ExceptionAction -ieq 'Q'){
-                                    # Remove unencrypted API variables from memory
-                                    Remove-Variable APIKey
-                                    Remove-Variable accessID
-                                    Remove-Variable secretKey
-                                    [System.GC]::Collect()
-                                    Write-Host 'Secrets unloaded, garbage collection completed.' -ForegroundColor Green
-                                    # End debug logging
-                                    if($Logging){Stop-transcript}
-                                    # Bail out
-                                    exit 1
+                            }
+                        finally {
+                            # Now send the emailaddress indicator
+                            try{
+                                # If Abnormal's API truncated the email address, we won't have a valid emailAddress indicator to submit, so skip it
+                                if($Message.fromAddress.Length -lt 255)
+                                    {
+                                    $response = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
+                                    }
+                                }
+                            catch{
+                                $err=$_.Exception
+                                # If we got a 403 error, the likely cause is a filtered/whitelisted email address.  Swap the email address with the reply-to address and re-submit the indicator.
+                                if($err -like "*(403)*"){
+                                    $bodyData.address = $ReplyTmp -iReplace $TargetOrg,'redacted'
+                                    $response403 = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
+                                    Write-Output $response403.data
+                                    }
+                                else{
+                                    Write-Host "*************************** UNHANDLED EXCEPTION SENDING EMAILADDRESS INDICATOR TO THREATCONNECT.  DETAILS BELOW: ***************************" -ForegroundColor Red
+                                    Write-Output $err
+                                    $ExceptionAction = Read-Host "Hit ENTER to continue processing records or Q to quit"
+                                    if ($ExceptionAction -ieq 'Q'){
+                                        # Remove unencrypted API variables from memory
+                                        Remove-Variable APIKey
+                                        Remove-Variable accessID
+                                        Remove-Variable secretKey
+                                        [System.GC]::Collect()
+                                        Write-Host 'Secrets unloaded, garbage collection completed.' -ForegroundColor Green
+                                        # End debug logging
+                                        if($Logging){Stop-transcript}
+                                        # Bail out
+                                        exit 1
+                                        }
                                     }
                                 }
                             }
+                        Write-Output $response.data
+                        Remove-Variable SendRecord
+                        break #Don't process any more copies of this message
                         }
-                    Write-Output $response.data
                     Remove-Variable SendRecord
                     break #Don't process any more copies of this message
-                    }
-                Remove-Variable SendRecord
-                break #Don't process any more copies of this message
+                } # /Message FromAddress matched in $FilterFile
             } # /Subject not contains [SUSPICIOUS]
         } # /Foreach message
     }
