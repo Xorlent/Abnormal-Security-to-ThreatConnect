@@ -1,7 +1,7 @@
 # Abnormal-Security-to-ThreatConnect
 ### A management tool for sending Abnormal email threat intelligence to ThreatConnect
 ## Summary
-This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitimate [Abnormal Security](https://abnormalsecurity.com) email-based attack threat intel data to the [ThreatConnect](https://threatconnect.com) TI platform.  By default, this tool iterates through the following Abnormal threat types, presents each unique result to the analyst, and prompts to (I)nspect in browser, (Y)send or (N)skip the result.  
+This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitimate [Abnormal Security](https://abnormalsecurity.com) email-based attack threat intel data to the [ThreatConnect](https://threatconnect.com) TI platform.  By default, this tool iterates through the following Abnormal threat types, presents each unique result to the analyst, and prompts to (I)nspect in browser, (F)ilter e-mail From Address, (Y)send, or (N)skip the result.  
 - Invoice/Payment Fraud (BEC)
 - Malware
 - Extortion
@@ -38,4 +38,5 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
 - This tool is considered beta until I am comfortable that we've processed enough data with it that we have dealt with most edge cases.  I suspect the tool will receive more revisions and significant refactoring before it becomes version 1.0.
 - Currently the Abnormal API email FromAddress field is limited to 256 characters which can lead to truncated values and therefore invalid addresses being returned.  In the event an email address is truncated, this tool skips reporting the emailAddress indicator object to ThreatConnect, but the IP Address indictor will be published.
 - The configuration file includes encrypted API details. The file is not portable between users/computers. Simply delete AbnormaltoTC-Config.xml and run Get-AbnormaltoTC.ps1 to build a new configuration file.
+- AbnormaltoTC-Filters.txt, created on first run, can be edited freely, with each filtered from e-mail address per line.
 - By default, all indicators submitted to ThreatConnect will have a confidence of 90 and a threat level of 3.  The script has guidance on how to change this if desired.
