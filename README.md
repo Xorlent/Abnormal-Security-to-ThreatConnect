@@ -31,8 +31,9 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
    - Organization city, state
 3. The tool then prompts for the number of days of data to retrieve
 4. Each Abnormal threat result will return a prompt asking the analyst whether or not to send the item to ThreatConnect
-   - This tool has basic redaction capabilities to help ensure no data leakage occurs
+   - This tool has basic redaction capabilities to help reduce the chance of data leakage
    - If you followed Abnormal's recommendation to prepend [SUSPICIOUS] to items identified as bulk mail, these will be skipped automatically
+   - All threat results are submitted as [TLP:Amber](https://www.cisa.gov/news-events/news/traffic-light-protocol-tlp-definitions-and-usage)
 
 ## Notes, Limitations
 - This tool is considered beta until I am comfortable that we've processed enough data with it that we have dealt with most edge cases.  I suspect the tool will receive more revisions and significant refactoring before it becomes version 1.0.
