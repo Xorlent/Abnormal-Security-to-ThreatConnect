@@ -2,7 +2,7 @@
 .NAME
     Abnormal Security Email Threat Feed to ThreatConnect
 .VERSION
-    0.1.4
+    0.1.5
 .NOTES
     1.API connection ID and secrets are encrypted with the Windows Data Protection API.
         Encrypted config file fields within AbnormaltoTC-Config.xml are not portable between users/machines.
@@ -26,8 +26,8 @@ $Logging = $false
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Set up runtime variables
-$FilterFile = "$PSScriptRoot\AbnormaltoTC-Filters.txt"
 $ConfigFile = "$PSScriptRoot\AbnormaltoTC-Config.xml"
+$FilterFile = "$PSScriptRoot\AbnormaltoTC-Filters.txt"
 $DefaultAPIURL = 'https://app.threatconnect.com'
 $TargetOrg = ""
 $TargetOrgFull = ""
@@ -209,7 +209,9 @@ ForEach($Attack in $InterestingAttackTypes)
                     $SanitizedSubject1 = $Message.subject -iReplace $TargetOrg,'-redacted-'
                     $SanitizedSubject = $SanitizedSubject1 -iReplace $TargetOrgFull,'-redacted-'
                     $SanitizedSubject
-                    $SanitizedFrom1 = $Message.fromName -iReplace $TargetOrg,'-redacted-'
+
+                    $FromString = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($Message.fromName))
+                    $SanitizedFrom1 = $FromString -iReplace $TargetOrg,'-redacted-'
                     $SanitizedFrom = $SanitizedFrom1 -iReplace $TargetOrgFull,'-redacted-'
 
                     $AttributeArray = @(
