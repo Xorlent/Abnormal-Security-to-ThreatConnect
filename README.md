@@ -40,4 +40,5 @@ This Windows PowerShell tool Get-AbnormaltoTC.ps1 streamlines publishing legitim
 - Currently the Abnormal API email FromAddress field is limited to 256 characters which can lead to truncated values and therefore invalid addresses being returned.  In the event an email address is truncated, this tool skips reporting the emailAddress indicator object to ThreatConnect, but the IP Address indictor will be published.
 - The configuration file includes encrypted API details. The file is not portable between users/computers. Simply delete AbnormaltoTC-Config.xml and run Get-AbnormaltoTC.ps1 to build a new configuration file.
 - AbnormaltoTC-Filters.txt, created on first run, can be edited freely, with each filtered from e-mail address per line.
+  - The filter list allows partial matches.  Example: an entry of @pcmag.com will filter any email from a @pcmag.com email address.
 - By default, all indicators submitted to ThreatConnect will have a confidence of 90 and a threat level of 3.  The script has guidance on how to change this if desired.
