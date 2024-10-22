@@ -2,7 +2,7 @@
 .NAME
     Abnormal Security Email Threat Feed to ThreatConnect
 .VERSION
-    0.1.5
+    0.1.6
 .NOTES
     1.API connection ID and secrets are encrypted with the Windows Data Protection API.
         Encrypted config file fields within AbnormaltoTC-Config.xml are not portable between users/machines.
@@ -139,7 +139,7 @@ $APIEndpoint = 'https://api.abnormalplatform.com/v1/'
 $APIKey = [pscredential]::new('user',$abnormalAPIKeySS).GetNetworkCredential().Password
 
 # These Abnormal Attack Types have been selected to present the most useful threat records for processing
-$InterestingAttackTypes = 'Invoice/Payment Fraud (BEC)','Malware','Extortion','Phishing: Sensitive Data','Scam','Internal-to-Internal Attacks (Email Account Takeover)','Social Engineering (BEC)','Other','Phishing: Credential'
+$InterestingAttackTypes = 'Invoice/Payment Fraud (BEC)','Malware','Extortion','Phishing: Sensitive Data','Scam','Internal-to-Internal Attacks (Email Account Takeover)','Social Engineering (BEC)','Other'#,'Phishing: Credential'
 
 # For information about how to set Threat Confidence and Threat Rating values, see https://knowledge.threatconnect.com/docs/best-practices-indicator-threat-and-confidence-ratings
 $InterestingAttackThreatConfidence = @(90,90,90,90,90,90,90,90,90) # You can update/adjust these ThreatConfidence values if desired; each entry corresponds to an InterestingAttackTypes value above
@@ -209,6 +209,16 @@ ForEach($Attack in $InterestingAttackTypes)
                     $SanitizedSubject1 = $Message.subject -iReplace $TargetOrg,'-redacted-'
                     $SanitizedSubject = $SanitizedSubject1 -iReplace $TargetOrgFull,'-redacted-'
                     $SanitizedSubject
+
+                    # Check to see if the from address is a valid email address format
+                    try{
+                        $null = [mailaddress]$Message.fromAddress
+                        $FromAddress = $Message.fromAddress
+                        }
+                    catch{
+                        # If from address is invalid, swap the replyToEmails[0] value in
+                        $FromAddress = $Message.replyToEmails[0]
+                        }
 
                     $FromString = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($Message.fromName))
                     $SanitizedFrom1 = $FromString -iReplace $TargetOrg,'-redacted-'
@@ -350,7 +360,7 @@ ForEach($Attack in $InterestingAttackTypes)
                                         @{
                                         'type' = 'Description'
                                         'default' = 'true'
-                                        'value' = 'EMAIL FROM: ' + $Message.fromAddress.Replace($TargetOrg,'redacted') + ' (' + $SanitizedFrom + ') | IP: ' + $Message.senderIpAddress + ' | RETURN PATH: ' + $Message.returnPath.Replace($TargetOrg,'redacted') + ' | SUBJECT: ' + $SanitizedSubject + ' | ATTACK TYPE: ' + $Message.attackType + ' | STRATEGY: ' + $Message.attackStrategy + ' | VECTOR: ' + $Message.attackVector + ' | INSIGHTS: ' + $Message.summaryInsights
+                                        'value' = 'EMAIL FROM: ' + $FromAddress.Replace($TargetOrg,'redacted') + ' (' + $SanitizedFrom + ') | IP: ' + $Message.senderIpAddress + ' | RETURN PATH: ' + $Message.returnPath.Replace($TargetOrg,'redacted') + ' | SUBJECT: ' + $SanitizedSubject + ' | ATTACK TYPE: ' + $Message.attackType + ' | STRATEGY: ' + $Message.attackStrategy + ' | VECTOR: ' + $Message.attackVector + ' | INSIGHTS: ' + $Message.summaryInsights
                                         }
                                     )
                                 }
@@ -385,7 +395,7 @@ ForEach($Attack in $InterestingAttackTypes)
                             $bodyData = @{
                                 'type' = 'EmailAddress'
                                 'ownerName' = $OwnerName
-                                'address' = $Message.fromAddress -iReplace $TargetOrg,'redacted'
+                                'address' = $FromAddress -iReplace $TargetOrg,'redacted'
                                 'lastSeen' = $Message.receivedTime
                                 'attributes' = @{
                                     'data' = $AttributeArray
@@ -427,7 +437,7 @@ ForEach($Attack in $InterestingAttackTypes)
                             $bodyData = @{
                                 'type' = 'EmailAddress'
                                 'ownerName' = $OwnerName
-                                'address' = $Message.fromAddress -iReplace $TargetOrg,'redacted'
+                                'address' = $FromAddress -iReplace $TargetOrg,'redacted'
                                 'lastSeen' = $Message.receivedTime
                                 'attributes' = @{
                                     'data' = $AttributeArray
@@ -461,7 +471,7 @@ ForEach($Attack in $InterestingAttackTypes)
                             # Now send the emailaddress indicator
                             try{
                                 # If Abnormal's API truncated the email address, we won't have a valid emailAddress indicator to submit, so skip it
-                                if($Message.fromAddress.Length -lt 255)
+                                if($FromAddress.Length -lt 255)
                                     {
                                     $response = Invoke-RestMethod -Uri $APIURL2 -Header $headerData -ContentType 'application/json' -Method $URLMethod -Body ($bodyData | ConvertTo-Json -Depth 4)
                                     Write-Output $response.data
