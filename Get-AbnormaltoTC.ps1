@@ -139,7 +139,7 @@ $APIEndpoint = 'https://api.abnormalplatform.com/v1/'
 $APIKey = [pscredential]::new('user',$abnormalAPIKeySS).GetNetworkCredential().Password
 
 # These Abnormal Attack Types have been selected to present the most useful threat records for processing
-$InterestingAttackTypes = 'Invoice/Payment Fraud (BEC)','Malware','Extortion','Phishing: Sensitive Data','Scam','Internal-to-Internal Attacks (Email Account Takeover)','Social Engineering (BEC)','Other'#,'Phishing: Credential'
+$InterestingAttackTypes = 'Invoice/Payment Fraud (BEC)','Malware','Extortion','Phishing: Sensitive Data','Scam','Internal-to-Internal Attacks (Email Account Takeover)','Social Engineering (BEC)','Other','Phishing: Credential'
 
 # For information about how to set Threat Confidence and Threat Rating values, see https://knowledge.threatconnect.com/docs/best-practices-indicator-threat-and-confidence-ratings
 $InterestingAttackThreatConfidence = @(90,90,90,90,90,90,90,90,90) # You can update/adjust these ThreatConfidence values if desired; each entry corresponds to an InterestingAttackTypes value above
