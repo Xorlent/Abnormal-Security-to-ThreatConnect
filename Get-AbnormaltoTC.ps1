@@ -2,7 +2,7 @@
 .NAME
     Abnormal Security Email Threat Feed to ThreatConnect
 .VERSION
-    0.1.6
+    0.1.7
 .NOTES
     1.API connection ID and secrets are encrypted with the Windows Data Protection API.
         Encrypted config file fields within AbnormaltoTC-Config.xml are not portable between users/machines.
@@ -192,10 +192,21 @@ ForEach($Attack in $InterestingAttackTypes)
         {
             if(!$Message.subject.Contains('[SUSPICIOUS]'))
             {
+                # Check to see if the from address is a valid email address format
+                try{
+                    $null = [mailaddress]$Message.fromAddress
+                    $FromAddress = $Message.fromAddress
+                    }
+                catch{
+                    # If from address is invalid, swap the replyToEmails[0] value in
+                    $FromAddress = $Message.replyToEmails[0]
+                    }
+
                 $filterMatch = 0
+
                 ForEach($FilterAddress in Get-Content $FilterFile)
                 {
-                    if($Message.fromAddress.Contains($FilterAddress))
+                    if($FromAddress.Contains($FilterAddress))
                     {
                         $filterMatch = 1
                         break
@@ -209,16 +220,6 @@ ForEach($Attack in $InterestingAttackTypes)
                     $SanitizedSubject1 = $Message.subject -iReplace $TargetOrg,'-redacted-'
                     $SanitizedSubject = $SanitizedSubject1 -iReplace $TargetOrgFull,'-redacted-'
                     $SanitizedSubject
-
-                    # Check to see if the from address is a valid email address format
-                    try{
-                        $null = [mailaddress]$Message.fromAddress
-                        $FromAddress = $Message.fromAddress
-                        }
-                    catch{
-                        # If from address is invalid, swap the replyToEmails[0] value in
-                        $FromAddress = $Message.replyToEmails[0]
-                        }
 
                     $FromString = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($Message.fromName))
                     $SanitizedFrom1 = $FromString -iReplace $TargetOrg,'-redacted-'
@@ -248,7 +249,7 @@ ForEach($Attack in $InterestingAttackTypes)
                     $Message.senderIpAddress
 
                     Write-Host 'From: '-ForegroundColor Gray -NoNewline
-                    $Message.fromAddress
+                    $FromAddress
 
                     Write-Host 'Return Path: '-ForegroundColor Gray -NoNewline
                     $Message.returnPath
@@ -320,7 +321,7 @@ ForEach($Attack in $InterestingAttackTypes)
 
                     # Add the From Address to the filter configuration file
                     if($SendRecord -ieq 'F'){
-                        Add-Content -Path $FilterFile -Value $Message.fromAddress
+                        Add-Content -Path $FilterFile -Value $FromAddress
                         Write-Host "<<<<<<<<<<<<<<<<<<<<<<<<<Email From Address added to filter list located at $FilterFile>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
                         }
                 
