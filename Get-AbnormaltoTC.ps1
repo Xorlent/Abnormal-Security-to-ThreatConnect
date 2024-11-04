@@ -2,7 +2,7 @@
 .NAME
     Abnormal Security Email Threat Feed to ThreatConnect
 .VERSION
-    0.1.7
+    0.1.8
 .NOTES
     1.API connection ID and secrets are encrypted with the Windows Data Protection API.
         Encrypted config file fields within AbnormaltoTC-Config.xml are not portable between users/machines.
@@ -139,7 +139,7 @@ $APIEndpoint = 'https://api.abnormalplatform.com/v1/'
 $APIKey = [pscredential]::new('user',$abnormalAPIKeySS).GetNetworkCredential().Password
 
 # These Abnormal Attack Types have been selected to present the most useful threat records for processing
-$InterestingAttackTypes = 'Invoice/Payment Fraud (BEC)','Malware','Extortion','Phishing: Sensitive Data','Scam','Internal-to-Internal Attacks (Email Account Takeover)','Social Engineering (BEC)','Other','Phishing: Credential'
+$InterestingAttackTypes = <#'Invoice/Payment Fraud (BEC)','Malware','Extortion','Phishing: Sensitive Data','Scam','Internal-to-Internal Attacks (Email Account Takeover)','Social Engineering (BEC)','Other',#>'Phishing: Credential'
 
 # For information about how to set Threat Confidence and Threat Rating values, see https://knowledge.threatconnect.com/docs/best-practices-indicator-threat-and-confidence-ratings
 $InterestingAttackThreatConfidence = @(90,90,90,90,90,90,90,90,90) # You can update/adjust these ThreatConfidence values if desired; each entry corresponds to an InterestingAttackTypes value above
@@ -167,6 +167,51 @@ $FilterString = 'threats?filter=receivedTime gte ' + $DateSpecifier + '&attackTy
 
 # Begin debug if so configured
 if($Logging){Start-transcript -Path "$PSScriptRoot\AbnormaltoTCDebug.log"}
+
+function Convert-ToAscii {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$InputString
+    )
+    
+    # Cyrillic to Latin character mappings
+    $cyrillicMap = @{
+        # Lowercase (U+0430 through U+044F)
+        "`u0430"='a';  "`u0431"='b';  "`u0432"='v';  "`u0433"='g';  "`u0434"='d';
+        "`u0435"='e';  "`u0451"='yo'; "`u0436"='zh'; "`u0437"='z';  "`u0438"='i';
+        "`u0439"='y';  "`u043A"='k';  "`u043B"='l';  "`u043C"='m';  "`u043D"='n';
+        "`u043E"='o';  "`u043F"='p';  "`u0440"='r';  "`u0441"='s';  "`u0442"='t';
+        "`u0443"='u';  "`u0444"='f';  "`u0445"='kh'; "`u0446"='ts'; "`u0447"='ch';
+        "`u0448"='sh'; "`u0449"='sch';"`u044A"='';   "`u044B"='y';  "`u044C"='';
+        "`u044D"='e';  "`u044E"='yu'; "`u044F"='ya';
+
+        # Uppercase (U+0410 through U+042F)
+        "`u0410"='A';  "`u0411"='B';  "`u0412"='V';  "`u0413"='G';  "`u0414"='D';
+        "`u0415"='E';  "`u0401"='Yo'; "`u0416"='Zh'; "`u0417"='Z';  "`u0418"='I';
+        "`u0419"='Y';  "`u041A"='K';  "`u041B"='L';  "`u041C"='M';  "`u041D"='N';
+        "`u041E"='O';  "`u041F"='P';  "`u0420"='R';  "`u0421"='S';  "`u0422"='T';
+        "`u0423"='U';  "`u0424"='F';  "`u0425"='Kh'; "`u0426"='Ts'; "`u0427"='Ch';
+        "`u0428"='Sh'; "`u0429"='Sch';"`u042A"='';   "`u042B"='Y';  "`u042C"='';
+        "`u042D"='E';  "`u042E"='Yu'; "`u042F"='Ya'
+    }
+
+    # Cyrillic character replacements
+    foreach ($key in $cyrillicMap.Keys) {
+        $InputString = $InputString.Replace($key, $cyrillicMap[$key])
+    }
+
+    # Normalize
+    $normalizedString = $InputString.Normalize([Text.NormalizationForm]::FormKD)
+    
+    # Convert to ASCII
+    $encodedBytes = [System.Text.Encoding]::UTF8.GetBytes($normalizedString)
+    $asciiBytes = [System.Text.Encoding]::Convert(
+        [System.Text.Encoding]::UTF8,
+        [System.Text.Encoding]::ASCII,
+        $encodedBytes
+    )
+    return [System.Text.Encoding]::ASCII.GetString($asciiBytes)
+}
 
 # Look up Abnormal Security threats
 ForEach($Attack in $InterestingAttackTypes)
@@ -219,11 +264,13 @@ ForEach($Attack in $InterestingAttackTypes)
                     Write-Host 'Subject: '-ForegroundColor Gray -NoNewline
                     $SanitizedSubject1 = $Message.subject -iReplace $TargetOrg,'-redacted-'
                     $SanitizedSubject = $SanitizedSubject1 -iReplace $TargetOrgFull,'-redacted-'
+                    $SanitizedSubject = Convert-ToAscii($SanitizedSubject)
                     $SanitizedSubject
 
                     $FromString = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($Message.fromName))
                     $SanitizedFrom1 = $FromString -iReplace $TargetOrg,'-redacted-'
                     $SanitizedFrom = $SanitizedFrom1 -iReplace $TargetOrgFull,'-redacted-'
+                    $SanitizedFrom = Convert-ToAscii($SanitizedFrom)
 
                     $AttributeArray = @(
                         @{
